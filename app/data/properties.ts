@@ -1,4 +1,5 @@
 // data/properties.ts
+
 export type Property = {
   id: string;
   name: string;
@@ -9,37 +10,39 @@ export type Property = {
   priceMax?: number;
   avgRating?: number;
   tags?: string[];
+  image?: ImageSourcePropType;
 };
 
 export const MOCK_PROPERTIES: Property[] = [
   {
     id: 'p1',
-    name: '元智A社區',
-    address: '桃園市中壢區某路 1 號',
-    lat: 24.9693,
-    lng: 121.2632,
-    priceMin: 8000,
-    priceMax: 12000,
+    name: '集聖樓',
+    address: '桃園市中壢區興仁路二段27巷10號',
+    lat: 24.967972301235466, 
+    lng: 121.26349479365886,
+    priceMin: 4000,
+    priceMax: 6000,
     avgRating: 4.2,
     tags: ['套房', '電梯'],
+   
   },
   {
     id: 'p2',
-    name: '元智B公寓',
-    address: '桃園市中壢區某路 2 號',
-    lat: 24.9701,
-    lng: 121.2619,
+    name: '元智大富翁',
+    address: '桃園市中壢區興安一街36號',
+    lat: 24.96679151328128, 
+    lng: 121.26463898016613,
     priceMin: 7000,
-    priceMax: 11000,
+    priceMax: 10000,
     avgRating: 3.8,
-    tags: ['雅房', '近學校'],
+    tags: ['套房', '有門禁'],
   },
   {
     id: 'p3',
-    name: '元智C套房',
-    address: '桃園市中壢區某路 3 號',
-    lat: 24.9685,
-    lng: 121.2641,
+    name: '元智生活會館',
+    address: '桃園市中壢區興仁路二段99號',
+    lat: 24.966763808238433, 
+    lng: 121.26349222249459,
     priceMin: 9000,
     priceMax: 13000,
     avgRating: 4.5,
