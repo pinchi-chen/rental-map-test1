@@ -10,7 +10,7 @@ export type Property = {
   priceMax?: number;
   avgRating?: number;
   tags?: string[];
-  image?: ImageSourcePropType;
+  imageUrl?: string;
 };
 
 export const MOCK_PROPERTIES: Property[] = [
