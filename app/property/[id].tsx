@@ -66,10 +66,12 @@ export default function PropertyDetails() {
   const isFav = favs.includes(property.id);
 
   const toggleFav = async () => {
-    const next = isFav ? favs.filter((x) => x !== property.id) : [...favs, property.id];
-    setFavs(next);
-    await setJSON(FAVS_KEY, next);
-  };
+  const next = isFav ? favs.filter((x) => x !== property.id) : [...favs, property.id];
+  setFavs(next);
+  await setJSON(FAVS_KEY, next);
+  Alert.alert(isFav ? '已取消收藏' : '已加入收藏');
+};
+
 
   const submitComment = async () => {
     if (!text.trim()) {
