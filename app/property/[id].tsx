@@ -1,8 +1,19 @@
 // app/property/[id].tsx
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { MOCK_PROPERTIES, Property } from '../data/properties'; // ← 如果你的型別在 app/data/properties.ts，路徑改成 '../data/properties'
+import {
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { openDirections } from '../../lib/nav'; // ← 若你的檔名是 openMaps.ts，改成 '../../lib/openMaps'
+import { MOCK_PROPERTIES, Property } from '../data/properties';
 import { getJSON, setJSON } from '../lib/storage';
 
 type Comment = {
@@ -88,6 +99,21 @@ export default function PropertyDetails() {
 
   const displayAvg = avgFromComments ?? property.avgRating ?? 0;
 
+  // 導航：點擊後直接開地圖 App 導航到此物件座標
+  //用地址找
+  const handleNavigate = () => {
+  if (!property) return;
+ // openDirections({ address: property.address, label: property.name });
+  openDirections({ address: property.address, label: property.name }, { preferred: 'google' });
+
+};
+
+        //用經緯度找
+  /*const handleNavigate = () => {
+  if (!property) return;
+  openDirections({ lat: property.lat, lng: property.lng, label: property.name });
+};*/
+
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
       <Image
@@ -106,12 +132,25 @@ export default function PropertyDetails() {
             平均評分：{displayAvg} ★（{comments.length} 則評論）
           </Text>
         </View>
+        {/* 原本 header 右側的單顆收藏按鈕拿掉，改成下方兩顆行動按鈕 */}
+      </View>
+
+      {/* === 行動按鈕列：導航 + 收藏（新增） === */}
+      <View style={styles.actionRow}>
+        <Pressable onPress={handleNavigate} style={[styles.actionBtn, { backgroundColor: '#0ea5e9' }]}>
+          <Ionicons name="navigate" size={18} color="#fff" />
+          <Text style={styles.actionText}>導航</Text>
+        </Pressable>
 
         <Pressable
           onPress={toggleFav}
-          style={[styles.favBtn, isFav && { backgroundColor: '#ff595e' }]}
+          style={[
+            styles.actionBtn,
+            { backgroundColor: isFav ? '#ef4444' : '#111' },
+          ]}
         >
-          <Text style={styles.favBtnText}>{isFav ? '❤️ 已收藏' : '🤍 收藏'}</Text>
+          <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={18} color="#fff" />
+          <Text style={styles.actionText}>{isFav ? '已收藏' : '收藏'}</Text>
         </Pressable>
       </View>
 
@@ -123,8 +162,6 @@ export default function PropertyDetails() {
           標籤：{property.tags?.length ? property.tags.join('、') : '無'}
         </Text>
       </View>
-
-      {/* 你原本的導航/距離按鈕可以放在這個卡片下方（略） */}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>新增評論</Text>
@@ -199,13 +236,29 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '800' },
   muted: { color: '#666', marginTop: 3 },
   mutedSmall: { color: '#888', fontSize: 12, marginBottom: 4 },
-  favBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#222',
-    borderRadius: 10,
+
+  // 新增：兩顆行動按鈕
+  actionRow: {
+    paddingHorizontal: 16,
+    marginTop: 4,
+    flexDirection: 'row',
+    gap: 12,
   },
-  favBtnText: { color: 'white', fontWeight: '700' },
+  actionBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+
   card: {
     backgroundColor: 'white',
     marginHorizontal: 16,
