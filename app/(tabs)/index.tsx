@@ -2,10 +2,11 @@
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MOCK_PROPERTIES } from '../data/properties'; // 若 data 在根目錄，改成 ../../data/properties
+
 
 const INITIAL_REGION = {
   latitude: 24.9690,
@@ -15,6 +16,8 @@ const INITIAL_REGION = {
 };
 
 export default function MapScreen() {
+  const [searchQuery, setSearchQuery] = useState('');
+
   const router = useRouter();
   const mapRef = useRef<MapView | null>(null);
   const markerRefs = useRef<Record<string, any>>({}); // 存每個 pin 的參考，用來顯示/關閉 callout
@@ -59,10 +62,17 @@ export default function MapScreen() {
     setMapKey(k => k + 1); // ← 讓《全部》一定把所有點復原
   }
 
-  const filtered = useMemo(
-    () => (minRating == null ? MOCK_PROPERTIES : MOCK_PROPERTIES.filter(p => (p.avgRating ?? 0) >= minRating)),
-    [minRating]
+  const filtered = useMemo(() => {
+  const base = minRating == null ? MOCK_PROPERTIES : MOCK_PROPERTIES.filter(p => (p.avgRating ?? 0) >= minRating);
+  if (!searchQuery.trim()) return base;
+  const q = searchQuery.trim().toLowerCase();
+  return base.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    p.address.toLowerCase().includes(q) ||
+    (p.tags?.some(tag => tag.toLowerCase().includes(q)))
   );
+}, [minRating, searchQuery]);
+
 
   // 篩選變動就自動框住目前顯示的點
   useEffect(() => {
@@ -105,7 +115,15 @@ export default function MapScreen() {
 
         {/* 上方工具列 */}
         <View style={styles.topBar}>
-          <Text style={styles.title}>元智租屋地圖（MVP）</Text>
+          <Text style={styles.title}>元智租屋地圖</Text>
+          <TextInput
+            placeholder="搜尋名稱、地址、標籤"
+            placeholderTextColor="#ccc"
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+
           <View style={styles.row}>
             <View style={styles.filters}>
               <Pressable style={styles.chip} onPress={() => applyFilter(null)}>
@@ -141,4 +159,13 @@ const styles = StyleSheet.create({
   chipText: { color: '#fff' },
   btn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#111' },
   btnText: { color: '#fff', fontWeight: '700' },
+
+  searchInput: {
+  backgroundColor: 'rgba(255,255,255,0.1)',
+  borderRadius: 8,
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  color: 'white',
+},
+
 });
