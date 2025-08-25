@@ -49,3 +49,6 @@ export const MOCK_PROPERTIES: Property[] = [
     tags: ['套房', '可養寵物'],
   },
 ];
+
+const properties = MOCK_PROPERTIES;
+export default properties;

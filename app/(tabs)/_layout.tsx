@@ -23,14 +23,15 @@ export default function TabsLayout() {
 
       {/* 收藏頁：對應 app/(tabs)/favorites.tsx（一定要有這個檔案） */}
       <Tabs.Screen
-        name="favorites"
+        name="Favorites"
         options={{
-          title: '收藏',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="heart-outline" size={size} color={color} />
+        title: '收藏',
+        tabBarIcon: ({ color, size }) => (
+        <Ionicons name="heart" size={size} color={color} />
           ),
         }}
       />
+
 
       {/* 若你有 Explore 也可加上：
       <Tabs.Screen name="explore" options={{ title: '探索' }} />
