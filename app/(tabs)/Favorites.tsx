@@ -2,7 +2,7 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
-import PropertyCard from '../../components/PropertyCard'; // 你顯示房源的元件
+import FavoriteCard from '../../components/FavoriteCard';
 import { MOCK_PROPERTIES, Property } from '../data/properties';
 import { getJSON } from '../lib/storage';
 
@@ -33,11 +33,19 @@ export default function FavoritesScreen() {
   }
 
   return (
-    <FlatList
-      data={favorites}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <PropertyCard property={item} />}
-      contentContainerStyle={{ padding: 16 }}
-    />
-  );
+  <FlatList
+    data={favorites}
+    keyExtractor={(item) => item.id}
+    renderItem={({ item }) => (
+      <FavoriteCard
+        property={item}
+        onRemove={(id) => {
+          setFavorites((prev) => prev.filter((p) => p.id !== id));
+        }}
+      />
+    )}
+    contentContainerStyle={{ padding: 16 }}
+  />
+);
+
 }

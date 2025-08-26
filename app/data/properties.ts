@@ -11,6 +11,7 @@ export type Property = {
   avgRating?: number;
   tags?: string[];
   imageUrl?: string;
+  rating?: number;
 };
 
 export const MOCK_PROPERTIES: Property[] = [
