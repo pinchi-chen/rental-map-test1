@@ -1,68 +1,62 @@
-// components/ui/FavoriteCard.tsx
-import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
+// components/FavoriteCard.tsx
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Property } from '../app/data/properties';
+import type { Property } from '../app/data/properties';
 
-interface Props {
+type Props = {
   property: Property;
-  onRemove: (id: string) => void;
-}
+  avg: number | null;           // 即時平均分數（可能為 null 代表尚無評論）
+  onRemove?: () => void;        // 收藏頁可直接取消收藏
+};
 
-export default function FavoriteCard({ property, onRemove }: Props) {
+export default function FavoriteCard({ property, avg, onRemove }: Props) {
+  const router = useRouter();
+  const desc = (typeof avg === 'number' && !Number.isNaN(avg))
+    ? `評分 ${avg}★`
+    : '尚無評論';
+
   return (
-    <View style={styles.container}>
-      <View style={styles.infoContainer}>
-        <Text style={styles.name}>{property.name}</Text>
-        <Text style={styles.address}>{property.address}</Text>
+    <Pressable
+      style={styles.card}
+      onPress={() => router.push(`/property/${property.id}`)}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={styles.name} numberOfLines={1}>{property.name}</Text>
+        <Text style={styles.addr} numberOfLines={1}>{property.address}</Text>
+        <Text style={styles.rating}>{desc}</Text>
       </View>
-      <View style={styles.actions}>
-        <FontAwesome name="star" size={16} color="orange" />
-        <Text style={styles.rating}>{property.rating ?? '4.0'}</Text>
-        <Pressable onPress={() => onRemove(property.id)}>
-          <MaterialIcons name="delete" size={20} color="red" />
+
+      {onRemove ? (
+        <Pressable style={styles.removeBtn} onPress={onRemove}>
+          <Text style={styles.removeTxt}>取消收藏</Text>
         </Pressable>
-      </View>
-    </View>
+      ) : null}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 10,
+    gap: 12,
+    padding: 12,
     borderRadius: 12,
-    marginVertical: 8,
-    marginHorizontal: 16,
+    backgroundColor: 'white',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  infoContainer: {
-    flex: 1,
-    paddingRight: 8,
+  name: { fontSize: 16, fontWeight: '800' },
+  addr: { color: '#666', marginTop: 2 },
+  rating: { marginTop: 6, fontWeight: '700', color: '#333' },
+  removeBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#ef4444',
   },
-  name: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  address: {
-    color: '#666',
-    fontSize: 13,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  rating: {
-    fontSize: 14,
-    color: '#444',
-  },
+  removeTxt: { color: '#fff', fontWeight: '700' },
 });
