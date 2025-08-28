@@ -12,20 +12,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { openDirections } from '../../lib/nav'; // ← 若你的檔名是 openMaps.ts，改成 '../../lib/openMaps'
+import { openDirections } from '../../lib/nav';
 import { MOCK_PROPERTIES, Property } from '../data/properties';
+import { Comment, commentsKey, setAverageRatingFromComments } from '../lib/comments';
 import { getJSON, setJSON } from '../lib/storage';
 
-type Comment = {
-  id: string;
-  user: string;
-  rating: number; // 1~5
-  text: string;
-  createdAt: number;
-};
-
 const FAVS_KEY = 'favs:v1';
-const commentsKey = (pid: string) => `comments:${pid}`;
 
 export default function PropertyDetails() {
   const router = useRouter();
@@ -66,12 +58,11 @@ export default function PropertyDetails() {
   const isFav = favs.includes(property.id);
 
   const toggleFav = async () => {
-  const next = isFav ? favs.filter((x) => x !== property.id) : [...favs, property.id];
-  setFavs(next);
-  await setJSON(FAVS_KEY, next);
-  Alert.alert(isFav ? '已取消收藏' : '已加入收藏');
-};
-
+    const next = isFav ? favs.filter((x) => x !== property.id) : [...favs, property.id];
+    setFavs(next);
+    await setJSON(FAVS_KEY, next);
+    Alert.alert(isFav ? '已取消收藏' : '已加入收藏');
+  };
 
   const submitComment = async () => {
     if (!text.trim()) {
@@ -89,7 +80,11 @@ export default function PropertyDetails() {
     setComments(next);
     setText('');
     setRating(5);
+
+    // 1) 寫入評論清單
     await setJSON(commentsKey(property.id), next);
+    // 2) 立刻依「最新評論陣列」寫入平均分數快取
+    await setAverageRatingFromComments(property.id, next);
   };
 
   const avgFromComments =
@@ -101,20 +96,10 @@ export default function PropertyDetails() {
 
   const displayAvg = avgFromComments ?? property.avgRating ?? 0;
 
-  // 導航：點擊後直接開地圖 App 導航到此物件座標
-  //用地址找
   const handleNavigate = () => {
-  if (!property) return;
- // openDirections({ address: property.address, label: property.name });
-  openDirections({ address: property.address, label: property.name }, { preferred: 'google' });
-
-};
-
-        //用經緯度找
-  /*const handleNavigate = () => {
-  if (!property) return;
-  openDirections({ lat: property.lat, lng: property.lng, label: property.name });
-};*/
+    if (!property) return;
+    openDirections({ address: property.address, label: property.name }, { preferred: 'google' });
+  };
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
@@ -134,10 +119,9 @@ export default function PropertyDetails() {
             平均評分：{displayAvg} ★（{comments.length} 則評論）
           </Text>
         </View>
-        {/* 原本 header 右側的單顆收藏按鈕拿掉，改成下方兩顆行動按鈕 */}
       </View>
 
-      {/* === 行動按鈕列：導航 + 收藏（新增） === */}
+      {/* 行動按鈕列：導航 + 收藏 */}
       <View style={styles.actionRow}>
         <Pressable onPress={handleNavigate} style={[styles.actionBtn, { backgroundColor: '#0ea5e9' }]}>
           <Ionicons name="navigate" size={18} color="#fff" />
@@ -146,10 +130,7 @@ export default function PropertyDetails() {
 
         <Pressable
           onPress={toggleFav}
-          style={[
-            styles.actionBtn,
-            { backgroundColor: isFav ? '#ef4444' : '#111' },
-          ]}
+          style={[styles.actionBtn, { backgroundColor: isFav ? '#ef4444' : '#111' }]}
         >
           <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={18} color="#fff" />
           <Text style={styles.actionText}>{isFav ? '已收藏' : '收藏'}</Text>
@@ -169,20 +150,13 @@ export default function PropertyDetails() {
         <Text style={styles.cardTitle}>新增評論</Text>
 
         <Text style={styles.label}>暱稱</Text>
-        <TextInput
-          value={user}
-          onChangeText={setUser}
-          placeholder="你的暱稱"
-          style={styles.input}
-        />
+        <TextInput value={user} onChangeText={setUser} placeholder="你的暱稱" style={styles.input} />
 
         <Text style={styles.label}>評分（點選星星）</Text>
         <View style={{ flexDirection: 'row', marginBottom: 8 }}>
           {[1, 2, 3, 4, 5].map((v) => (
             <Pressable key={v} onPress={() => setRating(v)}>
-              <Text style={{ fontSize: 26, marginRight: 6 }}>
-                {v <= rating ? '⭐' : '☆'}
-              </Text>
+              <Text style={{ fontSize: 26, marginRight: 6 }}>{v <= rating ? '⭐' : '☆'}</Text>
             </Pressable>
           ))}
         </View>
@@ -209,13 +183,9 @@ export default function PropertyDetails() {
           comments.map((c) => (
             <View key={c.id} style={{ marginBottom: 12 }}>
               <Text style={{ fontWeight: '700' }}>
-                {c.user}　{Array.from({ length: c.rating })
-                  .map(() => '⭐')
-                  .join('')}
+                {c.user}　{Array.from({ length: c.rating }).map(() => '⭐').join('')}
               </Text>
-              <Text style={styles.mutedSmall}>
-                {new Date(c.createdAt).toLocaleString()}
-              </Text>
+              <Text style={styles.mutedSmall}>{new Date(c.createdAt).toLocaleString()}</Text>
               <Text style={{ lineHeight: 20 }}>{c.text}</Text>
             </View>
           ))
@@ -238,8 +208,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '800' },
   muted: { color: '#666', marginTop: 3 },
   mutedSmall: { color: '#888', fontSize: 12, marginBottom: 4 },
-
-  // 新增：兩顆行動按鈕
   actionRow: {
     paddingHorizontal: 16,
     marginTop: 4,
@@ -254,13 +222,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-    marginLeft: 8,
-  },
-
+  actionText: { color: '#fff', fontWeight: '700', fontSize: 16, marginLeft: 8 },
   card: {
     backgroundColor: 'white',
     marginHorizontal: 16,

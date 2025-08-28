@@ -1,12 +1,12 @@
 // app/(tabs)/index.tsx
 import * as Location from 'expo-location';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MOCK_PROPERTIES } from '../data/properties'; // 若 data 在根目錄，改成 ../../data/properties
-
+import { MOCK_PROPERTIES } from '../data/properties';
+import { getAverageRating } from '../lib/comments';
 
 const INITIAL_REGION = {
   latitude: 24.9690,
@@ -17,16 +17,15 @@ const INITIAL_REGION = {
 
 export default function MapScreen() {
   const [searchQuery, setSearchQuery] = useState('');
-
   const router = useRouter();
   const mapRef = useRef<MapView | null>(null);
-  const markerRefs = useRef<Record<string, any>>({}); // 存每個 pin 的參考，用來顯示/關閉 callout
+  const markerRefs = useRef<Record<string, any>>({});
 
-  // 位置 / 篩選 / 為了確保《全部》能把點帶回來
   const [myCoords, setMyCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [hasLocation, setHasLocation] = useState(false);
   const [minRating, setMinRating] = useState<number | null>(null);
   const [mapKey, setMapKey] = useState(0);
+  const [avgRatings, setAvgRatings] = useState<Record<string, number>>({});
 
   async function locateMe() {
     try {
@@ -46,7 +45,6 @@ export default function MapScreen() {
     }
   }
 
-  // 🎯 回到我（若還沒定位就先定位一次）
   function recenterToMe() {
     if (myCoords) {
       mapRef.current?.animateToRegion({ ...myCoords, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 500);
@@ -55,26 +53,55 @@ export default function MapScreen() {
     }
   }
 
-  // 切換篩選（包含《全部》）：先把任何開著的泡泡關掉，再套用條件並強制重繪
   function applyFilter(val: number | null) {
     Object.values(markerRefs.current).forEach(m => m?.hideCallout?.());
     setMinRating(val);
-    setMapKey(k => k + 1); // ← 讓《全部》一定把所有點復原
+    setMapKey(k => k + 1);
   }
 
+  // 用「真實平均」來做篩選（沒有評論的就不會進 ≥3★/≥4★）
   const filtered = useMemo(() => {
-  const base = minRating == null ? MOCK_PROPERTIES : MOCK_PROPERTIES.filter(p => (p.avgRating ?? 0) >= minRating);
-  if (!searchQuery.trim()) return base;
-  const q = searchQuery.trim().toLowerCase();
-  return base.filter(p =>
-    p.name.toLowerCase().includes(q) ||
-    p.address.toLowerCase().includes(q) ||
-    (p.tags?.some(tag => tag.toLowerCase().includes(q)))
+    const base = minRating == null
+      ? MOCK_PROPERTIES
+      : MOCK_PROPERTIES.filter(p => (avgRatings[p.id] ?? 0) >= minRating);
+
+    if (!searchQuery.trim()) return base;
+    const q = searchQuery.trim().toLowerCase();
+    return base.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.address.toLowerCase().includes(q) ||
+      (p.tags?.some(tag => tag.toLowerCase().includes(q)))
+    );
+  }, [minRating, searchQuery, avgRatings]);
+
+  // 專門載入所有房源的平均分數
+  const loadAllAverages = useCallback(async () => {
+    const ratings: Record<string, number> = {};
+    for (const p of MOCK_PROPERTIES) {
+      // 先嘗試快取，沒有再用評論算
+      const avg = await getAverageRating(p.id);
+      if (avg != null) ratings[p.id] = avg;
+      // （可選）你也可以直接從評論算：
+      // const list = await getJSON<Comment[]>(commentsKey(p.id), []);
+      // if (list.length) { ...計算並寫入 ratings... }
+    }
+    setAvgRatings(ratings);
+    // console.log('avgRatings loaded:', ratings);
+  }, []);
+
+  // 重點：回到這個頁面時重新載入（避免停在舊值）
+  useFocusEffect(
+    useCallback(() => {
+      loadAllAverages();
+    }, [loadAllAverages])
   );
-}, [minRating, searchQuery]);
 
+  // 頁面初次載入也跑一次
+  useEffect(() => {
+    loadAllAverages();
+  }, [loadAllAverages]);
 
-  // 篩選變動就自動框住目前顯示的點
+  // 篩選變動就重新框住顯示點位
   useEffect(() => {
     if (!mapRef.current) return;
     const coords = filtered.map(p => ({ latitude: p.lat, longitude: p.lng }));
@@ -98,19 +125,23 @@ export default function MapScreen() {
           initialRegion={INITIAL_REGION}
           showsUserLocation={hasLocation}
         >
-          {filtered.map(p => (
-            <Marker
-              key={p.id}
-              ref={(ref) => { markerRefs.current[p.id] = ref; }}
-              coordinate={{ latitude: p.lat, longitude: p.lng }}
-              title={p.name}                                   // 這兩行保留「原生白色泡泡」
-              description={`評分 ${p.avgRating ?? 'N/A'}★`}
-              // 點圖針 → 只打開泡泡（不直接跳頁）
-              onPress={() => markerRefs.current[p.id]?.showCallout?.()}
-              // 點泡泡 → 進詳情頁（保留你原本的功能）
-              onCalloutPress={() => router.push(`/property/${p.id}`)}
-            />
-          ))}
+          {filtered.map(p => {
+            const avg = avgRatings[p.id];
+            const desc = (typeof avg === 'number' && !Number.isNaN(avg))
+              ? `評分 ${avg}★`
+              : '尚無評論';
+            return (
+              <Marker
+                key={p.id}
+                ref={(ref) => { markerRefs.current[p.id] = ref; }}
+                coordinate={{ latitude: p.lat, longitude: p.lng }}
+                title={p.name}
+                description={desc}
+                onPress={() => markerRefs.current[p.id]?.showCallout?.()}
+                onCalloutPress={() => router.push(`/property/${p.id}`)}
+              />
+            );
+          })}
         </MapView>
 
         {/* 上方工具列 */}
@@ -159,13 +190,11 @@ const styles = StyleSheet.create({
   chipText: { color: '#fff' },
   btn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#111' },
   btnText: { color: '#fff', fontWeight: '700' },
-
   searchInput: {
-  backgroundColor: 'rgba(255,255,255,0.1)',
-  borderRadius: 8,
-  paddingHorizontal: 12,
-  paddingVertical: 8,
-  color: 'white',
-},
-
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: 'white',
+  },
 });
